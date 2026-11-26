@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Yash Marketing - Master QC</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --bg-gradient: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%);
+      --card-bg: #ffffff;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --danger: #ef4444;
+      --danger-dark: #dc2626;
+      --success: #16a34a;
+      --success-dark: #15803d;
+      --border-color: #cbd5e1;
+    }
+
+    * { box-sizing: border-box; }
+
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+      background: var(--bg-gradient); 
+      margin: 0; 
+      padding: 12px; 
+      min-height: 100vh;
+    }
+    
+    h2 { color: var(--text-main); text-align: center; margin: 4px 0 2px 0; font-size: 22px; font-weight: 800; }
+    .ver-tag { text-align: center; font-size: 12px; color: var(--success); font-weight: bold; margin-bottom: 12px; }
+
+    .top-controls { 
+      text-align: center; 
+      margin: 0 auto 20px auto; 
+      max-width: 950px;
+      background: #ffffff; 
+      padding: 14px; 
+      border-radius: 16px; 
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08), inset 0 -3px 0 #e2e8f0; 
+    }
+
+    .tabs-label { font-weight: bold; color: var(--text-muted); margin-bottom: 10px; display: block; font-size: 13.5px; }
+    .tabs-container { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+
+    .tab-btn {
+      background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+      color: #334155;
+      padding: 10px 12px;
+      font-size: 13.5px;
+      font-weight: 700;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #94a3b8, 0 4px 8px rgba(0,0,0,0.06);
+      position: relative;
+      top: 0;
+      flex: 1;
+      min-width: 140px;
+      max-width: 220px;
+      transition: all 0.15s ease;
+    }
+
+    .tab-btn:hover { background: #f8fafc; }
+
+    .tab-btn.active {
+      background: linear-gradient(180deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: #ffffff;
+      border-color: #1e40af;
+      box-shadow: 0 2px 0 #1e3a8a;
+      top: 2px;
+    }
+
+    .tab-btn.reject-tab.active {
+      background: linear-gradient(180deg, var(--danger) 0%, var(--danger-dark) 100%);
+      border-color: #991b1b;
+      box-shadow: 0 2px 0 #7f1d1d;
+    }
+
+    .count-badge { background: #e2e8f0; color: #1e293b; padding: 2px 7px; border-radius: 10px; font-size: 11px; margin-left: 4px; }
+    .tab-btn.active .count-badge { background: #ffffff; color: var(--primary-dark); }
+    .tab-btn.reject-tab.active .count-badge { background: #ffffff; color: var(--danger-dark); }
+
+    .btn-refresh { 
+      background: linear-gradient(180deg, #0ea5e9 0%, #0284c7 100%); 
+      color: white; 
+      padding: 9px 20px; 
+      border: none; 
+      border-radius: 10px; 
+      cursor: pointer; 
+      font-size: 13.5px; 
+      font-weight: bold; 
+      box-shadow: 0 3px 0 #0369a1;
+    }
+
+    .card-container { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
+
+    /* CARD STYLES */
+    .card { 
+      background: #ffffff; 
+      padding: 14px; 
+      border-radius: 16px; 
+      box-shadow: 0 8px 20px rgba(0,0,0,0.08), inset 0 -3px 0 #cbd5e1; 
+      width: 330px; 
+      text-align: center; 
+      position: relative; 
+      border-top: 5px solid var(--primary); 
+    }
+    
+    /* Expanded width for Stock Inward dual-photo view */
+    .card.stock-card {
+      width: 460px;
+      max-width: 98vw;
+      border-top: 5px solid #0284c7;
+    }
+
+    .card.rejected-card { border-top: 5px solid var(--danger-dark); background: #fffafa; }
+
+    .row-badge { 
+      position: absolute; 
+      top: -12px; 
+      left: 14px; 
+      background: linear-gradient(180deg, var(--primary) 0%, #1e40af 100%); 
+      color: white; 
+      padding: 3px 10px; 
+      border-radius: 12px; 
+      font-size: 11px; 
+      font-weight: 800; 
+      letter-spacing: 0.5px;
+    }
+    .card.stock-card .row-badge { background: linear-gradient(180deg, #0284c7 0%, #0369a1 100%); }
+    .card.rejected-card .row-badge { background: linear-gradient(180deg, var(--danger) 0%, var(--danger-dark) 100%); }
+
+    .time-badge { 
+      background: #f1f5f9; 
+      color: #334155; 
+      padding: 4px 8px; 
+      border-radius: 6px; 
+      font-size: 11.5px; 
+      font-weight: 600; 
+      display: inline-block; 
+      margin: 4px 0 6px 0;
+      border: 1px solid #e2e8f0;
+    }
+
+    .staff-banner {
+      background: linear-gradient(90deg, #eff6ff 0%, #dbeafe 100%);
+      color: #1e40af;
+      border: 1px solid #bfdbfe;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      font-weight: 700;
+      margin: 2px 0 6px 0;
+      text-align: left;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .task-info-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 8px 10px;
+      text-align: left;
+      margin-bottom: 8px;
+    }
+    .task-info-box p {
+      margin: 3px 0;
+      color: var(--text-main);
+      font-size: 13px;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+
+    /* QUANTITY COMPARISON GRID FOR STOCK INWARD */
+    .qty-comparison-box {
+      display: flex;
+      justify-content: space-around;
+      gap: 6px;
+      background: #f1f5f9;
+      padding: 6px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      margin: 6px 0 10px 0;
+    }
+    .qty-pill {
+      flex: 1;
+      padding: 5px 4px;
+      border-radius: 6px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+    }
+    .qty-pill.qty-invoice { background: #e0f2fe; border: 1px solid #bae6fd; }
+    .qty-pill.qty-received { background: #dcfce7; border: 1px solid #bbf7d0; }
+    .qty-pill.qty-shortage { background: #fee2e2; border: 1px solid #fecaca; }
+    .qty-pill.qty-ok { background: #f0fdf4; border: 1px solid #bbf7d0; }
+
+    .qty-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #475569; }
+    .qty-invoice .qty-label { color: #0369a1; }
+    .qty-received .qty-label { color: #15803d; }
+    .qty-shortage .qty-label { color: #b91c1c; }
+    
+    .qty-num { font-size: 14px; font-weight: 800; color: #0f172a; margin-top: 2px; }
+    .qty-invoice .qty-num { color: #0369a1; }
+    .qty-received .qty-num { color: #166534; }
+    .qty-shortage .qty-num { color: #dc2626; }
+
+    /* DUAL PHOTO GRID (SIDE-BY-SIDE / BAJU-BAJU MEIN) */
+    .dual-photo-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 8px 0;
+    }
+    .photo-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .photo-col-title {
+      font-size: 11.5px;
+      font-weight: 800;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .photo-col-title.inv-title { color: #0284c7; }
+    .photo-col-title.prod-title { color: #16a34a; }
+
+    .img-box {
+      width: 100%;
+      height: 180px;
+      background-color: #f8fafc;
+      border-radius: 8px;
+      border: 2px solid #cbd5e1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      cursor: zoom-in;
+      position: relative;
+    }
+    .card.stock-card .img-box {
+      height: 190px;
+    }
+    .img-box img { 
+      width: 100%; 
+      height: 100%; 
+      object-fit: contain; 
+      display: block;
+      transition: transform 0.2s;
+    }
+    .img-box img:hover { transform: scale(1.02); }
+
+    .img-single-box {
+      width: 100%;
+      height: 220px;
+    }
+
+    .diag-box {
+      display: none;
+      padding: 10px;
+      font-size: 11.5px;
+      color: #334155;
+      text-align: center;
+    }
+
+    /* EXTRA PHOTO CHIPS (BOX & PAVTI) */
+    .extra-photos-bar {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin: 6px 0;
+      flex-wrap: wrap;
+    }
+    .extra-photo-chip {
+      font-size: 11px;
+      font-weight: bold;
+      background: #f1f5f9;
+      color: #334155;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      cursor: pointer;
+    }
+    .extra-photo-chip:hover { background: #e2e8f0; }
+
+    .reject-reason-box {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #f87171;
+      padding: 8px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: bold;
+      margin: 8px 0;
+      text-align: left;
+    }
+
+    .tap-hint { font-size: 11px; color: var(--primary); margin: 6px 0 8px 0; display: block; font-weight: 700; cursor: pointer; }
+
+    /* ACTION BUTTONS */
+    .btn-container { display: flex; justify-content: space-between; margin-top: 10px; gap: 8px; }
+    
+    .btn { 
+      flex: 1; 
+      padding: 10px; 
+      border: none; 
+      cursor: pointer; 
+      border-radius: 10px; 
+      color: white; 
+      font-weight: 700; 
+      font-size: 13.5px; 
+      transition: all 0.15s;
+    }
+    
+    .btn-approve { background: linear-gradient(180deg, #22c55e 0%, var(--success-dark) 100%); box-shadow: 0 3px 0 #15803d; }
+    .btn-reject { background: linear-gradient(180deg, var(--danger) 0%, var(--danger-dark) 100%); box-shadow: 0 3px 0 #b91c1c; }
+    .btn-whatsapp { background: linear-gradient(180deg, #25D366 0%, #128C7E 100%); box-shadow: 0 3px 0 #075E54; }
+    .btn-copy { background: linear-gradient(180deg, #64748b 0%, #475569 100%); box-shadow: 0 3px 0 #334155; }
+
+    .btn:active { transform: translateY(2px); box-shadow: none !important; }
+
+    #loading { text-align: center; font-size: 16px; color: #475569; margin-top: 30px; font-weight: 700; }
+    .error-msg { color: var(--danger-dark); font-weight: bold; }
+
+    /* FULL SCREEN IMAGE MODAL */
+    .modal-overlay { 
+      display: none; 
+      position: fixed; 
+      top: 0; 
+      left: 0; 
+      width: 100%; 
+      height: 100%; 
+      background: rgba(15, 23, 42, 0.94); 
+      z-index: 9999; 
+      flex-direction: column; 
+      justify-content: center; 
+      align-items: center; 
+      padding: 15px; 
+      box-sizing: border-box; 
+    }
+    .modal-header { color: white; text-align: center; margin-bottom: 8px; width: 100%; max-width: 600px; }
+    .modal-header p { margin: 2px 0; font-size: 14px; }
+    .close-btn { 
+      position: fixed; 
+      top: 14px; 
+      right: 18px; 
+      background: #ffffff; 
+      color: #1e293b; 
+      border: none; 
+      border-radius: 50%; 
+      width: 40px; 
+      height: 40px; 
+      font-size: 22px; 
+      font-weight: bold; 
+      cursor: pointer; 
+      z-index: 10001; 
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+    .modal-img { 
+      max-width: 96%; 
+      max-height: 65vh; 
+      object-fit: contain; 
+      border-radius: 10px; 
+      border: 2px solid #ffffff; 
+      background: #0f172a; 
+    }
+    .modal-actions { display: flex; gap: 12px; width: 100%; max-width: 400px; margin-top: 16px; }
+    .modal-actions .btn { padding: 12px; font-size: 15px; }
+
+    /* REJECT DIALOG MODAL */
+    .reject-dialog-box { 
+      background: white; 
+      padding: 20px; 
+      border-radius: 16px; 
+      width: 92%; 
+      max-width: 440px; 
+      text-align: left; 
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    }
+    .reject-dialog-box h3 { margin: 0 0 8px 0; color: var(--danger-dark); font-size: 18px; }
+    .reject-dialog-box label { font-weight: 700; font-size: 12.5px; color: #334155; display: block; margin-top: 10px; }
+    .reject-dialog-box select, .reject-dialog-box textarea { 
+      width: 100%; 
+      padding: 9px; 
+      margin-top: 4px; 
+      border: 1px solid var(--border-color); 
+      border-radius: 8px; 
+      font-size: 13.5px; 
+      box-sizing: border-box; 
+    }
+
+    /* QUICK REASON CHIPS */
+    .reason-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .reason-chip {
+      background: #f1f5f9;
+      color: #334155;
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid #cbd5e1;
+    }
+    .reason-chip:hover { background: #fee2e2; border-color: #fca5a5; color: #b91c1c; }
+
+    /* TOAST NOTIFICATION */
+    #toast {
+      visibility: hidden;
+      min-width: 260px;
+      background-color: #1e293b;
+      color: #fff;
+      text-align: center;
+      border-radius: 8px;
+      padding: 12px 18px;
+      position: fixed;
+      z-index: 10002;
+      bottom: 25px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 13.5px;
+      font-weight: bold;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+    }
+    #toast.show {
+      visibility: visible;
+      animation: fadein 0.3s, fadeout 0.3s 2.5s;
+    }
+    @keyframes fadein { from { bottom: 0; opacity: 0; } to { bottom: 25px; opacity: 1; } }
+    @keyframes fadeout { from { bottom: 25px; opacity: 1; } to { bottom: 0; opacity: 0; } }
+  </style>
+</head>
+<body>
+
+  <h2>Yash Marketing - Master QC</h2>
+  <div class="ver-tag">⚡ Live Dual-Photo QC & Automated Staff Alert Active</div>
+  
+  <div class="top-controls">
+    <span class="tabs-label">⚡ QC Categories (Select Karein):</span>
+    
+    <div class="tabs-container">
+      <button class="tab-btn active" onclick="selectTab('Attendance_Logs', this)">
+        🤳 Attendance <span class="count-badge" id="badge-Attendance_Logs">-</span>
+      </button>
+      <button class="tab-btn" onclick="selectTab('Stock Inward', this)">
+        📦 Stock Inward <span class="count-badge" id="badge-Stock_Inward">-</span>
+      </button>
+      <button class="tab-btn" onclick="selectTab('Task_Submissions', this)">
+        ✅ Tasks <span class="count-badge" id="badge-Task_Submissions">-</span>
+      </button>
+      <button class="tab-btn reject-tab" onclick="selectTab('Rejected_List', this)">
+        ❌ Rejected <span class="count-badge" id="badge-Rejected_List">-</span>
+      </button>
+    </div>
+
+    <button class="btn-refresh" onclick="syncCurrentTab()">🔄 Sync Current Tab</button>
+  </div>
+  
+  <div id="loading">⚡ Fast Loading... Data sync ho raha hai.</div>
+  <div class="card-container" id="qc-container"></div>
+
+  <!-- FULL SCREEN PHOTO PREVIEW MODAL -->
+  <div id="photo-modal" class="modal-overlay" onclick="handleOverlayClick(event)">
+    <button class="close-btn" onclick="closeModal()">×</button>
+    <div class="modal-header" id="modal-details"></div>
+    <img id="modal-image" class="modal-img" referrerpolicy="no-referrer" src="" alt="Full Preview">
+    <div class="modal-actions">
+      <button class="btn btn-approve" onclick="approveByUid(currentModalUid, true)">✅ Approve</button>
+      <button class="btn btn-reject" onclick="openRejectByUid(currentModalUid, true)">❌ Reject & Alert</button>
+    </div>
+  </div>
+
+  <!-- REJECT & STAFF ALERT MODAL -->
+  <div id="reject-modal" class="modal-overlay">
+    <div class="reject-dialog-box">
+      <h3>❌ Task Reject & Staff Alert</h3>
+      <p id="reject-task-info" style="font-size: 13px; color: #475569; margin-bottom: 8px;"></p>
+      
+      <label>👤 Staff Member (WhatsApp Alert ke liye):</label>
+      <select id="reject-staff-select"></select>
+
+      <label>📝 Reject Reason:</label>
+      <textarea id="reject-reason-input" rows="3" placeholder="Jaise: Stock qty match nahi hui, photo dhundhla hai..."></textarea>
+      
+      <div style="margin-top: 6px;">
+        <span style="font-size: 11px; font-weight: bold; color: #64748b;">Quick Reasons (Click to add):</span>
+        <div class="reason-chips">
+          <span class="reason-chip" onclick="setQuickReason('Stock Qty Mismatch (Shortage)')">Stock Qty Mismatch</span>
+          <span class="reason-chip" onclick="setQuickReason('Product Photo Missing / Not Clear')">Photo Not Clear</span>
+          <span class="reason-chip" onclick="setQuickReason('Invoice Qty & Received Qty Differ')">Qty Differ</span>
+          <span class="reason-chip" onclick="setQuickReason('Galat Item / Wrong Model Photo')">Wrong Model</span>
+        </div>
+      </div>
+
+      <div class="btn-container" style="margin-top: 16px;">
+        <button class="btn btn-reject" onclick="confirmReject()">📱 Reject & WhatsApp Alert</button>
+        <button class="btn" style="background:#64748b; box-shadow: 0 3px 0 #475569;" onclick="closeRejectDialog()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast">Alert Copied to Clipboard!</div>
+
+  <script>
+    var currentSheet = 'Attendance_Logs'; 
+    var cachedData = {}; 
+    var taskMap = {}; 
+    var staffList = [];
+    var currentModalUid = null;
+    var pendingRejectUid = null;
+    var pendingFromModal = false;
+
+    function escapeHtml(str) {
+      return String(str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function showToast(msg) {
+      var toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.className = "show";
+      setTimeout(function() { toast.className = toast.className.replace("show", ""); }, 2800);
+    }
+
+    function handleOverlayClick(event) {
+      if (event.target === document.getElementById('photo-modal')) {
+        closeModal();
+      }
+    }
+
+    function setQuickReason(text) {
+      var input = document.getElementById('reject-reason-input');
+      input.value = text;
+      input.focus();
+    }
+
+    window.onload = function() {
+      loadSingleSheet(currentSheet, true, function() {
+        google.script.run.withSuccessHandler(function(meta) {
+          if (meta && meta.staffList) {
+            staffList = meta.staffList;
+            populateStaffDropdown();
+          }
+        }).getInitialMeta();
+      });
+    };
+
+    function syncCurrentTab() {
+      loadSingleSheet(currentSheet, true);
+    }
+
+    function loadSingleSheet(sheetName, isCurrent, callback) {
+      if (isCurrent) {
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('loading').innerHTML = "⚡ " + escapeHtml(sheetName) + " load ho raha hai...";
+        document.getElementById('qc-container').innerHTML = "";
+      }
+
+      google.script.run
+        .withSuccessHandler(function(tasks) {
+          cachedData[sheetName] = tasks || [];
+          for (var j = 0; j < cachedData[sheetName].length; j++) {
+            var t = cachedData[sheetName][j];
+            if (!t.uid) t.uid = sheetName.replace(/\s+/g, "_") + "_" + t.rowId;
+            taskMap[t.uid] = t;
+          }
+          updateBadgeForSheet(sheetName);
+          if (sheetName === currentSheet) {
+            renderCurrentTab();
+          }
+          if (callback) callback();
+        })
+        .withFailureHandler(function(err) {
+          if (sheetName === currentSheet) showError(err);
+        })
+        .getPendingQC(sheetName);
+    }
+
+    function updateBadgeForSheet(sheetName) {
+      var mapIds = {
+        'Attendance_Logs': 'badge-Attendance_Logs',
+        'Stock Inward': 'badge-Stock_Inward',
+        'Task_Submissions': 'badge-Task_Submissions',
+        'Rejected_List': 'badge-Rejected_List'
+      };
+      var badge = document.getElementById(mapIds[sheetName]);
+      if (badge) {
+        badge.innerText = cachedData[sheetName] ? cachedData[sheetName].length : 0;
+      }
+    }
+
+    function populateStaffDropdown() {
+      var select = document.getElementById('reject-staff-select');
+      var options = '<option value="">-- Staff Select Karein --</option>';
+      for (var i = 0; i < staffList.length; i++) {
+        var st = staffList[i];
+        var safeName = escapeHtml(st.name);
+        var last10 = st.phone ? st.phone.slice(-10) : 'No Phone';
+        options += '<option value="' + st.phone + '" data-name="' + safeName + '">' + safeName + ' (' + last10 + ')</option>';
+      }
+      select.innerHTML = options;
+    }
+
+    function selectTab(sheetName, btnElement) {
+      currentSheet = sheetName;
+      var buttons = document.querySelectorAll('.tab-btn');
+      for (var i = 0; i < buttons.length; i++) {
+        buttons[i].classList.remove('active');
+      }
+      btnElement.classList.add('active');
+
+      if (cachedData[sheetName]) {
+        renderCurrentTab();
+      } else {
+        loadSingleSheet(sheetName, true);
+      }
+    }
+
+    function showError(error) {
+      var msg = (error && error.message) ? error.message : String(error);
+      document.getElementById('loading').innerHTML = "<span class='error-msg'>Error: " + escapeHtml(msg) + "</span>";
+    }
+
+    /**
+     * Renders card content based on tab type
+     */
+    function renderCurrentTab() {
+      document.getElementById('loading').style.display = 'none';
+      var container = document.getElementById('qc-container');
+      var tasks = cachedData[currentSheet] || [];
+
+      if (tasks.length === 0) {
+        container.innerHTML = "<div style='text-align:center; padding:30px; color:#475569;'><h3>🎉 Sab clear hai!</h3><p>Is section mein koi pending QC item nahi hai.</p></div>";
+        return;
+      }
+
+      container.innerHTML = "";
+      var isRejectedTab = (currentSheet === 'Rejected_List');
+      var isStockInward = (currentSheet === 'Stock Inward');
+
+      for (var i = 0; i < tasks.length; i++) {
+        var task = tasks[i];
+        var uid = task.uid;
+
+        var card = document.createElement('div');
+        card.className = 'card ' + (isStockInward ? 'stock-card ' : '') + (isRejectedTab ? 'rejected-card' : '');
+        card.id = 'card-' + uid;
+
+        var innerHtml = '';
+        innerHtml += '<div class="row-badge">Seq #' + task.rowId + '</div>';
+        innerHtml += '<div class="time-badge">🕒 ' + escapeHtml(task.time) + '</div>';
+
+        // STOCK INWARD CARD LAYOUT (DUAL PHOTO & COMPARISON)
+        if (isStockInward) {
+          innerHtml += '<div class="staff-banner"><span>📦 ' + escapeHtml(task.category || 'Stock') + '</span><span>🏷️ ' + escapeHtml(task.brand || '') + '</span></div>';
+          
+          innerHtml += '<div class="task-info-box">' +
+                         '<p><strong>🏷️ Model:</strong> <span style="font-weight:700; color:#0f172a;">' + escapeHtml(task.modelName || task.empName) + '</span></p>' +
+                         '<p><strong>🧾 Invoice:</strong> ' + escapeHtml(task.invoiceNo) + (task.invoiceDate ? ' (' + escapeHtml(task.invoiceDate) + ')' : '') + '</p>' +
+                         (task.staffName ? '<p><strong>👤 Checker:</strong> ' + escapeHtml(task.staffName) + '</p>' : '') +
+                       '</div>';
+
+          // Quantity Comparison Pills
+          var shortageNum = task.shortageQty || (task.invoiceQty - task.actualQty);
+          var isShort = shortageNum > 0;
+          innerHtml += '<div class="qty-comparison-box">' +
+                         '<div class="qty-pill qty-invoice"><span class="qty-label">📄 Invoice Qty</span><span class="qty-num">' + (task.invoiceQty || 0) + ' Pcs</span></div>' +
+                         '<div class="qty-pill qty-received"><span class="qty-label">📥 Received Qty</span><span class="qty-num">' + (task.actualQty || 0) + ' Pcs</span></div>' +
+                         '<div class="qty-pill ' + (isShort ? 'qty-shortage' : 'qty-ok') + '"><span class="qty-label">' + (isShort ? '⚠️ Shortage' : '✅ Match') + '</span><span class="qty-num">' + (isShort ? '-' + shortageNum : '0') + ' Pcs</span></div>' +
+                       '</div>';
+
+          // DUAL PHOTO VIEW (SIDE-BY-SIDE / BAJU-BAJU MEIN)
+          var invPhoto = task.invoicePhotoUrl || '';
+          var prodPhoto = task.productPhotoUrl || '';
+          
+          innerHtml += '<div class="dual-photo-grid">' +
+                         '<div class="photo-col">' +
+                           '<span class="photo-col-title inv-title">🧾 Invoice Photo</span>' +
+                           '<div class="img-box" id="box-inv-' + uid + '" onclick="openModalPhoto(\'' + uid + '\', \'' + escapeHtml(invPhoto) + '\', \'Invoice Photo\')">' +
+                             (invPhoto ? '<img id="img-inv-' + uid + '" src="' + invPhoto + '" referrerpolicy="no-referrer" alt="Invoice Photo">' : '<span style="color:#94a3b8; font-size:12px;">No Photo</span>') +
+                           '</div>' +
+                         '</div>' +
+                         '<div class="photo-col">' +
+                           '<span class="photo-col-title prod-title">📦 Stock / Product</span>' +
+                           '<div class="img-box" id="box-prod-' + uid + '" onclick="openModalPhoto(\'' + uid + '\', \'' + escapeHtml(prodPhoto) + '\', \'Stock / Product Photo\')">' +
+                             (prodPhoto ? '<img id="img-prod-' + uid + '" src="' + prodPhoto + '" referrerpolicy="no-referrer" alt="Stock Photo">' : '<span style="color:#94a3b8; font-size:12px;">No Photo</span>') +
+                           '</div>' +
+                         '</div>' +
+                       '</div>';
+
+          // Optional Extra Photos (Box Photo & Pavti Photo chips)
+          if (task.boxPhotoUrl || task.pavtiPhotoUrl) {
+            innerHtml += '<div class="extra-photos-bar">';
+            if (task.boxPhotoUrl) {
+              innerHtml += '<span class="extra-photo-chip" onclick="openModalPhoto(\'' + uid + '\', \'' + escapeHtml(task.boxPhotoUrl) + '\', \'Box Photo\')">📦 Box Photo</span>';
+            }
+            if (task.pavtiPhotoUrl) {
+              innerHtml += '<span class="extra-photo-chip" onclick="openModalPhoto(\'' + uid + '\', \'' + escapeHtml(task.pavtiPhotoUrl) + '\', \'Pavti Photo\')">🧾 Pavti Photo</span>';
+            }
+            innerHtml += '</div>';
+          }
+
+          innerHtml += '<span class="tap-hint">🔍 Photo badi karne ke liye tap karein</span>';
+        } 
+        // ATTENDANCE & TASK CARDS
+        else {
+          innerHtml += '<div class="staff-banner"><span>👤 ' + escapeHtml(task.staffName || 'Staff') + '</span>' + (task.empId ? '<span style="font-size:11.5px; opacity:0.85;">' + escapeHtml(task.empId) + '</span>' : '') + '</div>';
+          
+          innerHtml += '<div class="task-info-box">' +
+                         '<p><strong>' + (currentSheet === 'Attendance_Logs' ? '🕒 Action:' : '📋 Task:') + '</strong> ' + escapeHtml(task.empName) + '</p>' +
+                         (task.taskType ? '<p><strong>' + (currentSheet === 'Attendance_Logs' ? '📍 Detail:' : '📌 Detail:') + '</strong> ' + escapeHtml(task.taskType) + '</p>' : '') +
+                       '</div>';
+
+          if (isRejectedTab) {
+            innerHtml += '<div class="reject-reason-box">❌ Reason: ' + escapeHtml(task.remark || 'N/A') + '</div>';
+          }
+
+          innerHtml += '<div class="img-box img-single-box" id="box-' + uid + '" onclick="openModalPhoto(\'' + uid + '\', \'' + escapeHtml(task.photoUrl) + '\', \'Photo Preview\')">' +
+                         (task.photoUrl ? '<img id="img-' + uid + '" src="' + task.photoUrl + '" referrerpolicy="no-referrer" alt="Photo">' : '<span style="color:#94a3b8; font-size:13px;">No Photo Attached</span>') +
+                         '<div class="diag-box" id="diag-' + uid + '"></div>' +
+                       '</div>' +
+                       '<span class="tap-hint" onclick="openModalPhoto(\'' + uid + '\', \'' + escapeHtml(task.photoUrl) + '\', \'Photo Preview\')">🔍 Photo badi karne ke liye tap karein</span>';
+        }
+
+        // ACTION BUTTONS
+        innerHtml += '<div class="btn-container">' +
+                       '<button class="btn btn-approve" onclick="approveByUid(\'' + uid + '\', false)">' +
+                         (isRejectedTab ? '✅ Re-Approve' : '✅ Approve') +
+                       '</button>' +
+                       (isRejectedTab ? 
+                         '<button class="btn btn-whatsapp" onclick="sendWhatsAppByUid(\'' + uid + '\')">📱 WhatsApp Reminder</button>' : 
+                         '<button class="btn btn-reject" onclick="openRejectByUid(\'' + uid + '\', false)">❌ Reject</button>'
+                       ) +
+                     '</div>';
+
+        card.innerHTML = innerHtml;
+        container.appendChild(card);
+      }
+    }
+
+    function openModalPhoto(uid, photoUrl, title) {
+      var task = taskMap[uid];
+      if (!task) return;
+
+      currentModalUid = uid;
+      var modalImg = document.getElementById('modal-image');
+      modalImg.src = photoUrl || task.photoUrl || '';
+      
+      var detailsHtml = '<p><strong>Seq #' + task.rowId + '</strong> | 👤 <b>' + escapeHtml(task.staffName || '') + '</b> | 🕒 ' + escapeHtml(task.time) + '</p>' +
+                        '<p><b>' + escapeHtml(title || '') + '</b>: ' + escapeHtml(task.empName) + ' — ' + escapeHtml(task.taskType) + '</p>';
+      
+      if (task.invoiceQty !== undefined) {
+        detailsHtml += '<p style="color:#38bdf8;">📄 Inv Qty: ' + task.invoiceQty + ' | 📥 Recv: ' + task.actualQty + ' | ⚠️ Shortage: ' + (task.shortageQty || 0) + '</p>';
+      }
+
+      document.getElementById('modal-details').innerHTML = detailsHtml;
+      document.getElementById('photo-modal').style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('photo-modal').style.display = 'none';
+      document.getElementById('modal-image').src = "";
+    }
+
+    function approveByUid(uid, fromModal) {
+      var task = taskMap[uid];
+      if (!task) return;
+
+      var cardElem = document.getElementById('card-' + uid);
+      if (cardElem) cardElem.style.display = 'none';
+
+      var sName = task.sheetName || currentSheet;
+      if (cachedData[sName]) {
+        cachedData[sName] = cachedData[sName].filter(function(t) { return t.uid !== uid; });
+        updateBadgeForSheet(sName);
+      }
+      if (cachedData['Rejected_List']) {
+        cachedData['Rejected_List'] = cachedData['Rejected_List'].filter(function(t) { return t.uid !== uid; });
+        updateBadgeForSheet('Rejected_List');
+      }
+      if (fromModal) closeModal();
+
+      google.script.run.submitQC(sName, task.rowId, "Approved", "OK");
+      showToast("✅ Approved successfully!");
+    }
+
+    function openRejectByUid(uid, fromModal) {
+      var task = taskMap[uid];
+      if (!task) return;
+
+      pendingRejectUid = uid;
+      pendingFromModal = fromModal;
+
+      document.getElementById('reject-task-info').innerText = 
+        "👤 " + (task.staffName || "Staff") + " | 📋 " + task.empName + " (" + task.taskType + ")";
+      document.getElementById('reject-reason-input').value = "";
+
+      var select = document.getElementById('reject-staff-select');
+      select.value = task.staffPhone || "";
+
+      if (!select.value) {
+        var checkStr = String((task.staffName || "") + " " + (task.empName || "")).toLowerCase();
+        for (var i = 0; i < staffList.length; i++) {
+          var first = staffList[i].name.split(" ")[0].toLowerCase();
+          if (first.length > 2 && checkStr.indexOf(first) !== -1) {
+            select.value = staffList[i].phone;
+            break;
+          }
+        }
+      }
+
+      document.getElementById('reject-modal').style.display = 'flex';
+    }
+
+    function closeRejectDialog() {
+      document.getElementById('reject-modal').style.display = 'none';
+      pendingRejectUid = null;
+    }
+
+    function confirmReject() {
+      if (!pendingRejectUid) return;
+      var task = taskMap[pendingRejectUid];
+      if (!task) return;
+
+      var reason = document.getElementById('reject-reason-input').value.trim();
+      if (!reason) {
+        alert("Kripya Reject karne ka reason zaroor likhiye!");
+        return;
+      }
+
+      var select = document.getElementById('reject-staff-select');
+      var selectedPhone = select.value;
+      var selectedOpt = select.options[select.selectedIndex];
+      var selectedName = (selectedOpt && selectedOpt.getAttribute('data-name')) ? selectedOpt.getAttribute('data-name') : (task.staffName || task.empName);
+
+      var cardElem = document.getElementById('card-' + task.uid);
+      if (cardElem) cardElem.style.display = 'none';
+
+      task.remark = selectedName + ": " + reason;
+      var sName = task.sheetName || currentSheet;
+
+      if (cachedData[sName]) {
+        cachedData[sName] = cachedData[sName].filter(function(t) { return t.uid !== task.uid; });
+        updateBadgeForSheet(sName);
+      }
+      if (!cachedData['Rejected_List']) cachedData['Rejected_List'] = [];
+      cachedData['Rejected_List'].unshift(task);
+      updateBadgeForSheet('Rejected_List');
+
+      closeRejectDialog();
+      if (pendingFromModal) closeModal();
+
+      // Submit to Google Sheets (and auto-logs to QC_Rejections)
+      google.script.run.submitQC(sName, task.rowId, "Rejected", task.remark);
+      
+      // Multi-channel staff notification (WhatsApp & Clipboard Toast)
+      triggerWhatsApp(selectedPhone, selectedName, task, reason);
+    }
+
+    function sendWhatsAppByUid(uid) {
+      var task = taskMap[uid];
+      if (!task) return;
+      triggerWhatsApp(task.staffPhone || "", task.staffName || task.empName, task, task.remark);
+    }
+
+    function triggerWhatsApp(phone, staffName, task, reason) {
+      var qtyText = "";
+      if (task.invoiceQty !== undefined) {
+        qtyText = "\n📊 *Invoice Qty:* " + task.invoiceQty + " Pcs | *Received Qty:* " + task.actualQty + " Pcs\n⚠️ *Shortage:* " + (task.shortageQty || 0) + " Pcs";
+      }
+
+      var msg = "⚠️ *QC REJECT ALERT - Yash Marketing*\n\n" +
+                "Namaste *" + (staffName || "Team") + "*,\n" +
+                "Aapka *" + (currentSheet) + "* QC mein *REJECT* ho gaya hai.\n\n" +
+                "📋 *Item / Detail:* " + task.empName + "\n" +
+                "📌 *Info:* " + task.taskType + "\n" +
+                qtyText + "\n" +
+                "🕒 *Time:* " + task.time + "\n" +
+                "❌ *Reject Reason:* " + reason + "\n\n" +
+                "Kripya isko turant verify karein aur sahi report / photo dobara submit karein.";
+
+      // Copy message to clipboard as instant fallback
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(msg).then(function() {
+          showToast("📋 Alert Message Copied & WhatsApp Opening!");
+        }).catch(function() {});
+      } else {
+        showToast("📱 WhatsApp Opening...");
+      }
+
+      var encodedMsg = encodeURIComponent(msg);
+      var waUrl = phone ? ("https://wa.me/" + phone + "?text=" + encodedMsg) : ("https://wa.me/?text=" + encodedMsg);
+      window.open(waUrl, '_blank');
+    }
+  </script>
+
+</body>
+</html>
