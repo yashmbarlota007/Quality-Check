@@ -220,11 +220,12 @@ function detectStaffFromRow(row, sheetName, config, dir) {
 var QC_SETTINGS = {
   "Stock Inward": {
     label: "Stock Inward",
-    colTime: 1,     // Column A (Date/Time)
-    colEmp: 11,     // Column K (Category)
-    colTask: 10,    // Column J (Model Name)
-    colSub: 3,      // Column C (Supplier / Party / Invoice Info)
-    colPhoto: 19,   // Column S (Pavti Photo)
+    colTime: 1,     // Column A (Date)
+    colTime2: 2,    // Column B (Time)
+    colEmp: 3,      // Column C (Staff Name - Vishal Gunjal)
+    colTask: 10,    // Column J (Model Name - Boat Rockerz Bold Black)
+    colSub: 7,      // Column G (Invoice Number - S57399326558048)
+    colPhoto: 20,   // Column T (Product / Stock Photo)
     colStatus: 21,  // Column U (QC Status)
     colRemark: 22,  // Column V (QC Remark)
     colQCTime: 23,  // Column W (QC Time)
@@ -291,8 +292,9 @@ function getSheetItemsByStatus(ss, sheetName, targetMode, maxItems, dir) {
   var lastCol = sheet.getLastColumn();
   if (lastRow === 0 || lastCol === 0) return [];
 
-  var maxColNeeded = Math.max(config.colTime, config.colEmp, config.colTask, config.colSub || 1, config.colPhoto, config.colStatus, config.colRemark);
-  var readCols = Math.min(lastCol, maxColNeeded);
+  var isStockInward = (sheetName === "Stock Inward" || sheetName.indexOf("Stock") !== -1 || sheetName.indexOf("Inward") !== -1);
+  var maxColNeeded = Math.max(config.colTime, config.colEmp, config.colTask, config.colSub || 1, config.colPhoto, config.colStatus, config.colRemark, isStockInward ? 23 : 1);
+  var readCols = Math.min(lastCol, Math.max(maxColNeeded, 23));
 
   var data = sheet.getRange(1, 1, lastRow, readCols).getValues();
   
@@ -307,8 +309,23 @@ function getSheetItemsByStatus(ss, sheetName, targetMode, maxItems, dir) {
   
   var items = [];
 
+  // Header mapping for dynamic column discovery (Row 1)
+  var hRow = data[0] || [];
+  var colMap = {};
+  for (var c = 0; c < hRow.length; c++) {
+    var hName = String(hRow[c] || "").trim().toLowerCase();
+    if (hName) colMap[hName] = c;
+  }
+  var getCol = function(nameList, defaultIdx) {
+    for (var k = 0; k < nameList.length; k++) {
+      var n = nameList[k].toLowerCase();
+      if (typeof colMap[n] !== "undefined") return colMap[n];
+    }
+    return defaultIdx;
+  };
+
   for (var i = data.length - 1; i >= 0; i--) {
-    if (!data[i] || data[i].length < 4) continue;
+    if (!data[i] || data[i].length < 4 || i === 0) continue;
 
     var status = "";
     if (data[i].length >= config.colStatus) {
@@ -334,49 +351,110 @@ function getSheetItemsByStatus(ss, sheetName, targetMode, maxItems, dir) {
       var match = fStr.match(/https?:\/\/[^"'\s)]+/i);
       if (match) photoLink = match[0];
     }
-    if (!photoLink) {
+    if (!photoLink && data[i].length >= config.colPhoto) {
       photoLink = String(data[i][config.colPhoto - 1] || "").trim();
     }
 
     var photoInfo = processPhotoField(photoLink);
+    var hasPhoto = (photoInfo.type !== "none" && photoLink !== "" && photoLink.toLowerCase().indexOf("no photo") === -1);
 
-    if (photoInfo.type !== "none" && photoLink !== "" && photoLink.toLowerCase().indexOf("no photo") === -1 && i > 0) {
+    if (isStockInward) {
+      var idxInvPhoto = getCol(["invoice photo"], 16);
+      var idxBoxPhoto = getCol(["box photo"], 17);
+      var idxPavtiPhoto = getCol(["pavti photo(s)", "pavti photo", "pavti"], 18);
+      var idxProdPhoto = getCol(["product photo", "stock photo", "product"], 19);
+
+      if (!hasPhoto) {
+        if ((data[i].length > idxInvPhoto && data[i][idxInvPhoto]) ||
+            (data[i].length > idxProdPhoto && data[i][idxProdPhoto]) ||
+            (data[i].length > idxBoxPhoto && data[i][idxBoxPhoto]) ||
+            (data[i].length > idxPavtiPhoto && data[i][idxPavtiPhoto])) {
+          hasPhoto = true;
+        }
+      }
+    }
+
+    if (hasPhoto) {
       var entryTime = formatTime(data[i][config.colTime - 1]);
       var staffInfo = detectStaffFromRow(data[i], sheetName, config, dir);
 
       var staffDisplay = staffInfo.name || "N/A";
       var mainTask = "";
       var subTask = "";
+      var modelName = "";
+      var categoryName = "";
+      var brandName = "";
+      var invoiceNo = "";
+      var invoiceDate = "";
+      var invQty = 0;
+      var actQty = 0;
+      var shortQty = 0;
+      var invPhotoUrl = "";
+      var prodPhotoUrl = "";
+      var boxPhotoUrl = "";
+      var pavtiPhotoUrl = "";
 
       if (sheetName === "Task_Submissions") {
-        // Task Kya Hai (Column E) aur Konsa Task/Report Hai (Column F)
         mainTask = String(data[i][config.colTask - 1] || "N/A").trim();
         var colF = String(data[i][config.colSub - 1] || "").trim();
         var colI = config.colDone ? String(data[i][config.colDone - 1] || "").trim() : "";
         subTask = colF ? (colF + (colI ? " (" + colI + ")" : "")) : colI;
-      } else if (sheetName === "Stock Inward" || sheetName.indexOf("Stock") !== -1 || sheetName.indexOf("Inward") !== -1) {
-        staffDisplay = String(data[i][10] || data[i][4] || "Stock").trim();
-        mainTask = String(data[i][11] || data[i][9] || "Model").trim();
-        var invNo = String(data[i][3] || "").trim();
-        subTask = "Inv #" + invNo + (data[i][9] ? " (" + data[i][9] + ")" : "");
-        
-        var invQty = parseFloat(data[i][12]) || 0;
-        var actQty = parseFloat(data[i][13]) || 0;
-        var shortQty = parseFloat(data[i][14]) || (invQty - actQty);
+      } else if (isStockInward) {
+        var idxDate = getCol(["date"], 0);
+        var idxTime = getCol(["time"], 1);
+        var idxStaff = getCol(["staff name", "staff"], 2);
+        var idxTrans = getCol(["transporter name", "transporter"], 3);
+        var idxInvNo = getCol(["invoice number", "invoice no", "inv no"], 6);
+        var idxInvDate = getCol(["invoice date"], 7);
+        var idxBrand = getCol(["brand name", "brand"], 8);
+        var idxModel = getCol(["model name", "model"], 9);
+        var idxCat = getCol(["category", "category "], 10);
+        var idxInvQty = getCol(["pieces per carton", "invoice qty", "carton pieces"], 11);
+        var idxActQty = getCol(["actual found qty", "actual qty", "received qty"], 12);
+        var idxShort = getCol(["shortage qty", "shortage"], 13);
 
-        var invRaw = data[i].length >= 19 ? data[i][18] : "";
-        var invPhotoUrl = processPhotoField(invRaw).data || "";
-        
-        var boxRaw = data[i].length >= 20 ? data[i][19] : "";
-        var boxPhotoUrl = processPhotoField(boxRaw).data || "";
+        staffDisplay = String(data[i][idxStaff] || "").trim() || staffInfo.name || "Stock Staff";
+        modelName = String(data[i][idxModel] || "").trim();
+        categoryName = String(data[i][idxCat] || "").trim();
+        brandName = String(data[i][idxBrand] || "").trim();
+        invoiceNo = String(data[i][idxInvNo] || "").trim();
+        invoiceDate = data[i][idxInvDate] ? formatTime(data[i][idxInvDate]) : "";
 
-        var pavRaw = data[i].length >= 21 ? data[i][20] : "";
-        var pavtiPhotoUrl = processPhotoField(pavRaw).data || "";
+        mainTask = modelName || categoryName || "Stock Item";
+        subTask = "Inv #" + (invoiceNo || "-") + (brandName ? " (" + brandName + ")" : "");
 
-        var prodRaw = data[i].length >= 22 ? data[i][21] : "";
-        var prodPhotoUrl = processPhotoField(prodRaw).data || "";
+        invQty = parseFloat(data[i][idxInvQty]) || 0;
+        actQty = parseFloat(data[i][idxActQty]) || 0;
+        var rawShort = data[i][idxShort];
+        shortQty = (rawShort !== "" && rawShort !== null && typeof rawShort !== "undefined") ? (parseFloat(rawShort) || 0) : (invQty - actQty);
+
+        var invRaw = data[i].length > idxInvPhoto ? data[i][idxInvPhoto] : "";
+        invPhotoUrl = processPhotoField(invRaw).data || "";
+
+        var boxRaw = data[i].length > idxBoxPhoto ? data[i][idxBoxPhoto] : "";
+        boxPhotoUrl = processPhotoField(boxRaw).data || "";
+
+        var pavRaw = data[i].length > idxPavtiPhoto ? data[i][idxPavtiPhoto] : "";
+        pavtiPhotoUrl = processPhotoField(pavRaw).data || "";
+
+        var prodRaw = data[i].length > idxProdPhoto ? data[i][idxProdPhoto] : "";
+        prodPhotoUrl = processPhotoField(prodRaw).data || "";
+
+        // Smart fallback: If prodPhotoUrl is empty, check any other URL in row
+        if (!prodPhotoUrl) {
+          for (var cIdx = 16; cIdx < data[i].length; cIdx++) {
+            var cellVal = String(data[i][cIdx] || "");
+            if (cIdx !== idxInvPhoto && (cellVal.indexOf("drive.google.com") !== -1 || cellVal.indexOf("/d/") !== -1 || cellVal.indexOf("http") === 0)) {
+              var proc = processPhotoField(cellVal);
+              if (proc.data && proc.data !== invPhotoUrl) {
+                prodPhotoUrl = proc.data;
+                break;
+              }
+            }
+          }
+        }
       } else {
-        // Attendance_Logs: Staff Name + Punch In/Out + Emp ID
+        // Attendance_Logs
         mainTask = String(data[i][config.colTask - 1] || "N/A").trim();
         subTask = config.colSub ? String(data[i][config.colSub - 1] || "").trim() : "";
       }
@@ -392,18 +470,23 @@ function getSheetItemsByStatus(ss, sheetName, targetMode, maxItems, dir) {
         staffName: staffDisplay,
         staffPhone: staffInfo.phone || "",
         empName: mainTask,
+        modelName: modelName || mainTask,
+        category: categoryName,
+        brand: brandName,
+        invoiceNo: invoiceNo,
+        invoiceDate: invoiceDate,
         taskType: subTask,
         photoType: photoInfo.type,
         rawLen: photoInfo.len,
         fileId: photoInfo.fileId || "",
-        photoUrl: (typeof invPhotoUrl !== "undefined" && invPhotoUrl) ? invPhotoUrl : (typeof prodPhotoUrl !== "undefined" && prodPhotoUrl ? prodPhotoUrl : photoInfo.data),
-        invoicePhotoUrl: (typeof invPhotoUrl !== "undefined") ? invPhotoUrl : "",
-        productPhotoUrl: (typeof prodPhotoUrl !== "undefined") ? prodPhotoUrl : "",
-        boxPhotoUrl: (typeof boxPhotoUrl !== "undefined") ? boxPhotoUrl : "",
-        pavtiPhotoUrl: (typeof pavtiPhotoUrl !== "undefined") ? pavtiPhotoUrl : "",
-        invoiceQty: (typeof invQty !== "undefined") ? invQty : 0,
-        actualQty: (typeof actQty !== "undefined") ? actQty : 0,
-        shortageQty: (typeof shortQty !== "undefined") ? shortQty : 0,
+        photoUrl: prodPhotoUrl || invPhotoUrl || photoInfo.data,
+        invoicePhotoUrl: invPhotoUrl,
+        productPhotoUrl: prodPhotoUrl,
+        boxPhotoUrl: boxPhotoUrl,
+        pavtiPhotoUrl: pavtiPhotoUrl,
+        invoiceQty: invQty,
+        actualQty: actQty,
+        shortageQty: shortQty,
         remark: remark
       });
 
@@ -412,9 +495,9 @@ function getSheetItemsByStatus(ss, sheetName, targetMode, maxItems, dir) {
   }
   return items;
 }
-
 function submitQC(sheetName, rowId, status, remark) {
   var config = QC_SETTINGS[sheetName];
+  if (!config) throw new Error("Invalid sheet: " + sheetName);
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(sheetName) || 
               ss.getSheetByName(sheetName.replace(/_/g, " ")) || 
@@ -423,8 +506,24 @@ function submitQC(sheetName, rowId, status, remark) {
   if (sheet) {
     var qcTimestamp = Utilities.formatDate(new Date(), "Asia/Kolkata", "dd-MMM-yyyy hh:mm:ss a");
     sheet.getRange(rowId, config.colStatus, 1, 3).setValues([[String(status), String(remark), qcTimestamp]]);
+    
+    if (String(status).toLowerCase() === "rejected") {
+      try {
+        var rejSheet = ss.getSheetByName("QC_Rejections");
+        if (!rejSheet) {
+          rejSheet = ss.insertSheet("QC_Rejections");
+          rejSheet.appendRow(["Timestamp", "Date", "Sheet", "Row ID", "Staff / Checker", "Item / Model", "Rejection Reason", "Status"]);
+          rejSheet.getRange(1, 1, 1, 8).setFontWeight("bold").setBackground("#fee2e2");
+        }
+        var rowData = sheet.getRange(rowId, 1, 1, Math.min(sheet.getLastColumn(), 23)).getValues()[0];
+        var staffVal = String(rowData[config.colEmp - 1] || "N/A");
+        var taskVal = String(rowData[config.colTask - 1] || "N/A");
+        var dateVal = Utilities.formatDate(new Date(), "Asia/Kolkata", "dd-MMM-yyyy");
+        rejSheet.appendRow([qcTimestamp, dateVal, sheetName, rowId, staffVal, taskVal, String(remark), "REJECTED"]);
+      } catch (logErr) {}
+    }
     return "Success";
   } else {
-    throw new Error("Sheet nahi mili.");
+    throw new Error("Sheet nahi mili: " + sheetName);
   }
 }
