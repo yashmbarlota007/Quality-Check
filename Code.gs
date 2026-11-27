@@ -1,4 +1,11 @@
-function doGet() {
+var ATTENDANCE_SS_ID = "1ZpvENHxTp_4_QEfc0IUzU5RJL-ZiwxmfxZNM178U7AA";
+
+function doGet(e) {
+  if (e && e.parameter && e.parameter.health) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, version: 45, timestamp: new Date().toISOString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   return HtmlService.createHtmlOutputFromFile('Index')
       .setTitle('Yash Marketing - Master QC')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
@@ -17,10 +24,10 @@ function fetchSingleRowPhoto(sheetName, rowId) {
     var config = QC_SETTINGS[sheetName];
     if (!config) return { ok: false, err: "Invalid sheet" };
 
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ss.getSheetByName(sheetName) || 
-              ss.getSheetByName(sheetName.replace(/_/g, " ")) || 
-              ss.getSheetByName(sheetName.replace(/\s+/g, "_"));
+    var ss = config.spreadsheetId ? SpreadsheetApp.openById(config.spreadsheetId) : SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName(config.sheetName || sheetName) || 
+              ss.getSheetByName((config.sheetName || sheetName).replace(/_/g, " ")) || 
+              ss.getSheetByName((config.sheetName || sheetName).replace(/\s+/g, "_"));
     var range = sheet.getRange(rowId, config.colPhoto);
     
     var rawVal = String(range.getValue() || "").trim();
@@ -141,11 +148,14 @@ function formatTime(val) {
   return String(val).trim();
 }
 
-// "Attendance" sheet se Staff Directory (ID, Name, Phone) nikalna
+// Staff Directory (ID, Name, Phone) nikalna
 function getStaffDirectory(ss) {
   var dir = { byId: {}, byName: {}, list: [] };
+  
+  // 1. Check Attendance Master SS "Staff Master"
   try {
-    var staffSheet = ss.getSheetByName("Attendance");
+    var attSS = SpreadsheetApp.openById(ATTENDANCE_SS_ID);
+    var staffSheet = attSS.getSheetByName("Staff Master");
     if (staffSheet) {
       var sData = staffSheet.getDataRange().getValues();
       for (var i = 1; i < sData.length; i++) {
@@ -162,12 +172,34 @@ function getStaffDirectory(ss) {
       }
     }
   } catch (e) {}
+
+  // 2. Fallback check local "Attendance" or "Staff" sheet
+  try {
+    if (dir.list.length === 0 && ss) {
+      var localStaff = ss.getSheetByName("Attendance") || ss.getSheetByName("Staff Master");
+      if (localStaff) {
+        var localData = localStaff.getDataRange().getValues();
+        for (var j = 1; j < localData.length; j++) {
+          var lId = String(localData[j][0] || "").trim().toUpperCase();
+          var lName = String(localData[j][1] || "").trim();
+          var lPhone = String(localData[j][3] || "").replace(/\D/g, "");
+          if (lPhone.length === 10) lPhone = "91" + lPhone;
+          if (lName) {
+            var lObj = { id: lId, name: lName, phone: lPhone };
+            dir.list.push(lObj);
+            dir.byName[lName.toLowerCase()] = lObj;
+            if (lId) dir.byId[lId] = lObj;
+          }
+        }
+      }
+    }
+  } catch (e2) {}
+
   return dir;
 }
 
-// Kisi bhi row ke shuruati columns (A, B, C, D) se Staff ka Naam pehchanna
+// Kisi bhi row se Staff ka Naam pehchanna
 function detectStaffFromRow(row, sheetName, config, dir) {
-  // 1. Pehle check karo agar row me kisi staff ka exact Name ya Employee ID (YM001...) likha hai
   var checkLimit = Math.min(row.length, 6);
   for (var c = 0; c < checkLimit; c++) {
     var val = String(row[c] || "").trim();
@@ -187,33 +219,31 @@ function detectStaffFromRow(row, sheetName, config, dir) {
     }
   }
 
-  // 2. Agar Attendance_Logs hai toh Column B (index 1) me direct naam hota hai
   if (sheetName === "Attendance_Logs") {
-    return { name: String(row[1] || "N/A").trim(), phone: "" };
+    var rawName = String(row[config.colEmp - 1] || "Staff").trim();
+    var rawId = config.colSub ? String(row[config.colSub - 1] || "").trim() : "";
+    var foundSt = dir.byName[rawName.toLowerCase()] || (rawId ? dir.byId[rawId.toUpperCase()] : null);
+    if (foundSt) return foundSt;
+    return { name: rawName, id: rawId, phone: "" };
   }
 
-  // 3. Task_Submissions me Column B, C, ya A me jo bhi staff name/role likha ho use uthao
   if (sheetName === "Task_Submissions") {
-    var possibleCols = [1, 2, 0, 3]; // Column B, C, A, D
+    var possibleCols = [1, 2, 0, 3];
     for (var p = 0; p < possibleCols.length; p++) {
       var idx = possibleCols[p];
       var cell = row[idx];
       if (cell && !(cell instanceof Date)) {
         var strCell = String(cell).trim();
-        // Skip numbers, dates, or frequency words like "Daily", "Weekly"
         if (strCell && !/^\d+$/.test(strCell) && !/^(daily|weekly|monthly|one time|urgent)$/i.test(strCell) && strCell.indexOf("2026") === -1) {
           return { name: strCell, phone: "" };
         }
       }
     }
-    // Agar A-D me frequency/type likha hai (jaise Column B ya C), toh wahi dikha do
     var colB = String(row[1] || "").trim();
     var colC = String(row[2] || "").trim();
-    var fallback = colB || colC || "Staff";
-    return { name: fallback, phone: "" };
+    return { name: colB || colC || "Staff", phone: "" };
   }
 
-  // 4. Stock Inward me agar staff column ho
   return { name: String(row[config.colEmp - 1] || "N/A").trim(), phone: "" };
 }
 
@@ -246,15 +276,18 @@ var QC_SETTINGS = {
   },
   "Attendance_Logs": { 
     label: "Attendance Selfie",
+    spreadsheetId: ATTENDANCE_SS_ID,
+    sheetName: "Attendance_Logs",
     colTime: 1,     // Column A (Timestamp)
     colEmp: 2,      // Column B (Employee Name)
-    colTask: 4,     // Column D (Punch In / Punch Out)
-    colSub: 3,      // Column C (Employee ID - YM005)
-    colPhoto: 6,    // Column F (Selfie Photo)
+    colSub: 3,      // Column C (Employee_ID: YM005)
+    colTask: 4,     // Column D (Punch_Type: Punch In / Punch Out)
+    colLoc: 5,      // Column E (Location_Coordinates)
+    colPhoto: 6,    // Column F (Selfie_Data)
     colStatus: 7,   // Column G (QC Status)
     colRemark: 8,   // Column H (QC Remark)
     colQCTime: 9,   // Column I (QC Time)
-    useRichText: true
+    useRichText: false
   }
 };
 
@@ -283,18 +316,27 @@ function getPendingQC(sheetName) {
 
 function getSheetItemsByStatus(ss, sheetName, targetMode, maxItems, dir) {
   var config = QC_SETTINGS[sheetName];
-  var sheet = ss.getSheetByName(sheetName) || 
-              ss.getSheetByName(sheetName.replace(/_/g, " ")) || 
-              ss.getSheetByName(sheetName.replace(/\s+/g, "_")); 
+  var targetSS = (config && config.spreadsheetId) ? SpreadsheetApp.openById(config.spreadsheetId) : ss;
+  var sheet = targetSS.getSheetByName(config.sheetName || sheetName) || 
+              targetSS.getSheetByName((config.sheetName || sheetName).replace(/_/g, " ")) || 
+              targetSS.getSheetByName((config.sheetName || sheetName).replace(/\s+/g, "_")); 
   if (!sheet) return [];
   
   var lastRow = sheet.getLastRow();
   var lastCol = sheet.getLastColumn();
   if (lastRow === 0 || lastCol === 0) return [];
 
+  // Ensure Attendance sheet has QC header columns if needed
+  if (sheetName === "Attendance_Logs" && lastCol < 9) {
+    try {
+      sheet.getRange(1, 7, 1, 3).setValues([["QC Status", "QC Remark", "QC Time"]]);
+      lastCol = 9;
+    } catch(hErr) {}
+  }
+
   var isStockInward = (sheetName === "Stock Inward" || sheetName.indexOf("Stock") !== -1 || sheetName.indexOf("Inward") !== -1);
-  var maxColNeeded = Math.max(config.colTime, config.colEmp, config.colTask, config.colSub || 1, config.colPhoto, config.colStatus, config.colRemark, isStockInward ? 23 : 1);
-  var readCols = Math.min(lastCol, Math.max(maxColNeeded, 23));
+  var maxColNeeded = Math.max(config.colTime, config.colEmp, config.colTask, config.colSub || 1, config.colPhoto, config.colStatus, config.colRemark, isStockInward ? 23 : 9);
+  var readCols = Math.min(Math.max(lastCol, 9), Math.max(maxColNeeded, 23));
 
   var data = sheet.getRange(1, 1, lastRow, readCols).getValues();
   
@@ -324,6 +366,7 @@ function getSheetItemsByStatus(ss, sheetName, targetMode, maxItems, dir) {
     return defaultIdx;
   };
 
+  // Scan newest entries first (from bottom to top)
   for (var i = data.length - 1; i >= 0; i--) {
     if (!data[i] || data[i].length < 4 || i === 0) continue;
 
@@ -440,7 +483,6 @@ function getSheetItemsByStatus(ss, sheetName, targetMode, maxItems, dir) {
         var prodRaw = data[i].length > idxProdPhoto ? data[i][idxProdPhoto] : "";
         prodPhotoUrl = processPhotoField(prodRaw).data || "";
 
-        // Smart fallback: If prodPhotoUrl is empty, check any other URL in row
         if (!prodPhotoUrl) {
           for (var cIdx = 16; cIdx < data[i].length; cIdx++) {
             var cellVal = String(data[i][cIdx] || "");
@@ -455,8 +497,12 @@ function getSheetItemsByStatus(ss, sheetName, targetMode, maxItems, dir) {
         }
       } else {
         // Attendance_Logs
-        mainTask = String(data[i][config.colTask - 1] || "N/A").trim();
-        subTask = config.colSub ? String(data[i][config.colSub - 1] || "").trim() : "";
+        var punchType = String(data[i][config.colTask - 1] || "Punch").trim();
+        var empIdVal = config.colSub ? String(data[i][config.colSub - 1] || "").trim() : "";
+        var locVal = (config.colLoc && data[i].length >= config.colLoc) ? String(data[i][config.colLoc - 1] || "").trim() : "";
+        
+        mainTask = punchType;
+        subTask = empIdVal + (locVal ? " • 📍 " + locVal : "");
       }
 
       var remark = data[i].length >= config.colRemark ? String(data[i][config.colRemark - 1] || "") : "";
@@ -469,6 +515,7 @@ function getSheetItemsByStatus(ss, sheetName, targetMode, maxItems, dir) {
         time: entryTime,
         staffName: staffDisplay,
         staffPhone: staffInfo.phone || "",
+        empId: staffInfo.id || (config.colSub ? String(data[i][config.colSub - 1] || "").trim() : ""),
         empName: mainTask,
         modelName: modelName || mainTask,
         category: categoryName,
@@ -495,13 +542,14 @@ function getSheetItemsByStatus(ss, sheetName, targetMode, maxItems, dir) {
   }
   return items;
 }
+
 function submitQC(sheetName, rowId, status, remark) {
   var config = QC_SETTINGS[sheetName];
   if (!config) throw new Error("Invalid sheet: " + sheetName);
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(sheetName) || 
-              ss.getSheetByName(sheetName.replace(/_/g, " ")) || 
-              ss.getSheetByName(sheetName.replace(/\s+/g, "_"));
+  var targetSS = (config && config.spreadsheetId) ? SpreadsheetApp.openById(config.spreadsheetId) : SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = targetSS.getSheetByName(config.sheetName || sheetName) || 
+              targetSS.getSheetByName((config.sheetName || sheetName).replace(/_/g, " ")) || 
+              targetSS.getSheetByName((config.sheetName || sheetName).replace(/\s+/g, "_"));
   
   if (sheet) {
     var qcTimestamp = Utilities.formatDate(new Date(), "Asia/Kolkata", "dd-MMM-yyyy hh:mm:ss a");
@@ -509,9 +557,10 @@ function submitQC(sheetName, rowId, status, remark) {
     
     if (String(status).toLowerCase() === "rejected") {
       try {
-        var rejSheet = ss.getSheetByName("QC_Rejections");
+        var masterSS = SpreadsheetApp.getActiveSpreadsheet();
+        var rejSheet = masterSS.getSheetByName("QC_Rejections");
         if (!rejSheet) {
-          rejSheet = ss.insertSheet("QC_Rejections");
+          rejSheet = masterSS.insertSheet("QC_Rejections");
           rejSheet.appendRow(["Timestamp", "Date", "Sheet", "Row ID", "Staff / Checker", "Item / Model", "Rejection Reason", "Status"]);
           rejSheet.getRange(1, 1, 1, 8).setFontWeight("bold").setBackground("#fee2e2");
         }
